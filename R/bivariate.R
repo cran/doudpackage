@@ -43,7 +43,7 @@ quantiMoreLevelsFun<-function(x, data, group){
   }
   else if (x@normal == FALSE){
     tryCatch({
-      my_env$p<-stats::kruskal.test(x@name~group, data = data)$p.value
+      my_env$p<-stats::kruskal.test(data[,x@name]~data[,group])$p.value
     },
     warning=function(w){
       warning(paste(w), x@name)
@@ -101,18 +101,19 @@ qualiBivFun<-function(x, group, data, digits.p){
 #'
 #' @param var listVar object or data.frame
 #' @param group  Variable to make subgroups with
+#' @param parallel Logical. Make analysis using parallel from [parallel::mclapply()].
 #' @param ... digits.p can be specified as descTab
 #'
 #' @return A list of VarGroup object or data.frame
-setGeneric("anaBiv", function(var, group, ...) {
+setGeneric("anaBiv", function(var, group, parallel,...) {
   return(standardGeneric("anaBiv"))
 })
 
 #' anaBiv data.frame function
 #' @inherit anaBiv
-setMethod("anaBiv", c(var = "listVar", group = "character"), function(var, group, ...){
+setMethod("anaBiv", c(var = "listVar", group = "character"), function(var, group, parallel, ...){
   if (!is.null(group)){
-    lst_VarGroup.Biv<-lapply(var@List, function(x, group, data, digits.p){
+    lst_VarGroup.Biv<-parallelFun(parallel, X = var@List, FUN = function(x, group, data, digits.p){
       if (x@type == "factor" && x@name != group)
         quali.Biv<-qualiBivFun(x, group, data, digits.p)
       else if (x@type == "numeric")
@@ -121,7 +122,7 @@ setMethod("anaBiv", c(var = "listVar", group = "character"), function(var, group
         return(NULL)
       else
         stop(sprintf("Uknown type for %s", x@name))
-    }, group, ...)
+    }, group = group, ...)
     lst_VarGroup.Biv<-purrr::compact(lst_VarGroup.Biv)
     return(lst_VarGroup.Biv)
   }
@@ -133,10 +134,10 @@ setMethod("anaBiv", c(var = "listVar", group = "character"), function(var, group
 #'
 #' @inherit anaBiv
 #' @export
-setMethod("anaBiv", c(var = "data.frame", group = "character"), function(var, group, ...) {
+setMethod("anaBiv", c(var = "data.frame", group = "character"), function(var, group, parallel, ...) {
   if (!is.null(group) && !is.factor(var[, group]))
     stop(sprintf("group needs to be a factor, %s is %s", group, class(var[, group])))
   var_list<-varType(var, normality = "assess")
-  ana.biv_list<-anaBiv(var_list, data = var, group = group, ...)
+  ana.biv_list<-anaBiv(var_list, group = group, parallel, ...)
   return(ana.biv_list)
 })

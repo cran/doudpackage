@@ -2,13 +2,11 @@
 ## Function to remove one level for binary variables
 parseQuali<-function(table, levels_to_keep){
   factor_list<-purrr::compact(lapply(table@var_list@List,function(x){
-    if("factor" %in% x@type) return(x@name)}))
-
+    if("factor" %in% x@type && !table@group %in% x@name) return(x@name)}))
   # Function to assemble row that will be removed from table
   var<-purrr::compact(lapply(factor_list, function(factor, data, table, levels_to_keep){
     var<-data[, factor]
     var_levels<-levels(var)
-
     if (nlevels(var) == 2){
       if(is.null(levels_to_keep) || !factor %in% names(levels_to_keep)){
         max_level<-var_levels[nlevels(var) - 1]
@@ -33,7 +31,8 @@ parseQuali<-function(table, levels_to_keep){
     else
       return(NULL)
   }, table@data, table@table, levels_to_keep))
-  table@table<-table@table[-which(table@table[,"var"] %in% unlist(var)),]
+  if (length(var) != 0)
+    table@table<-table@table[-which(table@table[,"var"] %in% unlist(var)),]
   return(table@table)
 }
 ########################################
@@ -53,6 +52,31 @@ orderRowForGroupLabels<-function(table, group_rows_labels){
   var<-dplyr::pull(tmp_df, "var")
   table@table<-table@table[-which(table@table[,"var"] %in% var),]
   table@table<-dplyr::bind_rows(tmp_df, table@table)
+  return(table@table)
+}
+
+## Function to rename columns according to the counts of each sub-group
+getPopGroups<-function(table)
+{
+  if (is.null(table@group))
+    return(table@table)
+
+  col.names<-lapply(colnames(table@table), function(col, table){
+    factor<-levels(table@data[,table@group])
+    if (col %in% factor){
+      t<-table(table@data[,table@group], useNA = "always")
+      prop_table<-round(prop.table(t) * 100,
+                        digits = table@digits.ql)
+      col<-paste("n = ", t[col], " (", prop_table[col], ")" , sep = "")
+    }
+    else if (col == "Total")
+      col<-paste("n = ", nrow(table@data), sep = "")
+    else if (col == "var")
+      col<-""
+    return(col)
+
+  }, table)
+  colnames(table@table)<-unlist(col.names)
   return(table@table)
 }
 
@@ -92,35 +116,11 @@ makeKableExtra<-function(table, col.order, group_rows_labels){
 
   if (table@na.print == TRUE){
     res_parsed<-res_parsed %>%
-      kableExtra::add_indent(ident)
+      kableExtra::add_indent(ident, level_of_indent = 1)
   }
   return(res_parsed)
 }
 
-## Function to rename columns according to the counts of each sub-group
-getPopGroups<-function(table)
-{
-  if (is.null(table@group))
-    return(table@table)
-
-  col.names<-lapply(colnames(table@table), function(col, table){
-    factor<-levels(table@data[,table@group])
-    if (col %in% factor){
-      t<-table(table@data[,table@group], useNA = "always")
-      prop_table<-round(prop.table(t) * 100,
-                        digits = table@digits.ql)
-      col<-paste("n = ", t[col], " (", prop_table[col], ")" , sep = "")
-    }
-    else if (col == "Total")
-      col<-paste("n = ", nrow(table@data), sep = "")
-    else if (col == "var")
-      col<-""
-    return(col)
-
-  }, table)
-  colnames(table@table)<-unlist(col.names)
-  return(table@table)
-}
 
 #### Main parsing Function #######
 #' Make the LaTeX/HTML table. Generic function

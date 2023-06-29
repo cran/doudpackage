@@ -27,6 +27,8 @@ varType<-function(data, normality){
 #' @param digits.qt Integer. Significant digits for mean/median, SD/IQR
 #' @param digits.ql Integer. Significant digits for proportions
 #' @param normality One of "assess", "normal", "manual", "non normal". See details
+#' @param parallel Logical. Make analysis using parallel from [parallel::mclapply()].
+#' @param mc.cores If parallel is TRUE, how many Cores to used.
 #'
 #' @return A S4 objects [parseClass()] containing the main table accessible by \["table"\] subscript.
 #' @export
@@ -47,20 +49,26 @@ varType<-function(data, normality){
 #' iris_test<-descTab(iris, group = "Species", na.print = TRUE)
 descTab<-function(data, group=NULL, quanti=TRUE, quali=TRUE, na.print = FALSE,
                       pvalue=TRUE, digits.p=3L, digits.qt = 1L,
-                  digits.ql = 1L, normality = "normal")
+                  digits.ql = 1L, normality = "normal", parallel = FALSE, mc.cores = 0)
 {
   checkVarDescTab(data, group, quanti, quali, na.print, pvalue, digits.p, digits.qt,
-           digits.ql, normality)
+           digits.ql, normality, parallel, mc.cores)
   if (!is.null(group) && !is.factor(data[, group]))
     stop(sprintf("group needs to be a factor, %s is %s", group, class(data[, group])))
+  if (isTRUE(parallel) && mc.cores == 0)
+    mc.cores = parallel::detectCores() - 1
+  data<-checkData(data, group)
   var_list<-varType(data, normality)
-  ana.biv_list<-anaBiv(var_list, data = data, group = group, digits.p = digits.p)
+  ana.biv_list<-anaBiv(var_list, parallel, data = data, group = group,
+                       digits.p = digits.p, mc.cores = mc.cores)
   if (is.null(ana.biv_list))
     ana.biv_list<-lapply(var_list@List, methods::as, Class = "VarGroup")
   ana.biv_list<-methods::new("listVar", List = ana.biv_list)
-  ana.univ_list<-anaUniv(ana.biv_list, group = group, data = data, digits.qt = digits.qt,
-                         digits.ql = digits.ql, quali = quali, quanti = quanti)
-  return<-makeTable(ana.univ_list, group, pvalue, na.print)
+  ana.univ_list<-anaUniv(ana.biv_list, parallel, group = group, data = data,
+                         digits.qt = digits.qt,
+                         digits.ql = digits.ql, quali = quali, quanti = quanti,
+                         mc.cores = mc.cores)
+  return<-makeTable(ana.univ_list, group, pvalue, na.print, parallel, mc.cores)
 
   return.table<-parseClass(table = return$df, group = group, quanti = quanti,
                            quali = quali, na.print = na.print,

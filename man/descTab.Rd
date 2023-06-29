@@ -14,7 +14,9 @@ descTab(
   digits.p = 3L,
   digits.qt = 1L,
   digits.ql = 1L,
-  normality = "normal"
+  normality = "normal",
+  parallel = FALSE,
+  mc.cores = 0
 )
 }
 \arguments{
@@ -31,6 +33,10 @@ descTab(
 \item{digits.ql}{Integer. Significant digits for proportions}
 
 \item{normality}{One of "assess", "normal", "manual", "non normal". See details}
+
+\item{parallel}{Logical. Make analysis using parallel from \code{\link[parallel:mclapply]{parallel::mclapply()}}.}
+
+\item{mc.cores}{If parallel is TRUE, how many Cores to used.}
 }
 \value{
 A S4 objects \code{\link[=parseClass]{parseClass()}} containing the main table accessible by ["table"] subscript.

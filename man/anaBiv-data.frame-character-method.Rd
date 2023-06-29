@@ -4,12 +4,14 @@
 \alias{anaBiv,data.frame,character-method}
 \title{anaBiv data.frame function}
 \usage{
-\S4method{anaBiv}{data.frame,character}(var, group, ...)
+\S4method{anaBiv}{data.frame,character}(var, group, parallel, ...)
 }
 \arguments{
 \item{var}{listVar object or data.frame}
 
 \item{group}{Variable to make subgroups with}
+
+\item{parallel}{Logical. Make analysis using parallel from \code{\link[parallel:mclapply]{parallel::mclapply()}}.}
 
 \item{...}{digits.p can be specified as descTab}
 }

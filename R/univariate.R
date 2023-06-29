@@ -33,20 +33,20 @@ qualiUnivFun<-function(x, data_sub, group, digits.ql){
   return(var.group_list)
 }
 
-lapplyQuali<-function(group, data, factor_list, digits.ql){
+lapplyQuali<-function(group, data, factor_list, digits.ql, parallel, mc.cores){
   if (!is.null(group)){
     for (i in 1:nlevels(data[,group])){
       data_sub<-data[data[,group] == levels(data[,group])[i],]
-      quali.Univ_list.tmp<-purrr::compact(lapply(factor_list@List, qualiUnivFun, data_sub = data_sub,
-                                  group = levels(data[,group])[i], digits.ql = digits.ql))
+      quali.Univ_list.tmp<-purrr::compact(parallelFun(parallel, X = factor_list@List, FUN = qualiUnivFun, data_sub = data_sub,
+                                  group = levels(data[,group])[i], digits.ql = digits.ql, mc.cores = mc.cores))
       if (!exists("quali.Univ_list.Group", inherits = FALSE))
         quali.Univ_list.Group<-quali.Univ_list.tmp
       else
         quali.Univ_list.Group<-c(quali.Univ_list.Group, quali.Univ_list.tmp)
     }
   }
-  lst_VarGroup.Univ.Total<-purrr::compact(lapply(factor_list@List, qualiUnivFun, data_sub = data,
-                                  group = NULL, digits.ql = digits.ql))
+  lst_VarGroup.Univ.Total<-purrr::compact(parallelFun(parallel, X = factor_list@List, FUN = qualiUnivFun, data_sub = data,
+                                  group = NULL, digits.ql = digits.ql, mc.cores = mc.cores))
   if (exists("quali.Univ_list.Group", inherits = FALSE)){
     quali.Univ_list.Global<-unlist(c(quali.Univ_list.Group, lst_VarGroup.Univ.Total))
     return(unlist(quali.Univ_list.Global))
@@ -68,11 +68,13 @@ quantiUnivFun<-function(x, data_sub, group, digits.qt, digits.ql){
   missing.value.name = paste(x@name, "Missing values", sep = ".")
   parsed_name = x@name
   if (x@normal == TRUE){
+    parsed_name = paste(x@name, "mean (SD)", sep = " ")
     "mean"<-round(mean(data_sub[,x@name], na.rm = T), digits = digits.qt)
     "sd"<-round(sd(data_sub[,x@name], na.rm = T), digits = digits.qt)
     value = paste(mean, " (", sd, ")", sep = "")
   }
   else{
+    parsed_name = paste(x@name, "median (IQR)", sep = " ")
     "median"<-round(stats::median(data_sub[,x@name], na.rm = T), digits = digits.qt)
     "iqr"<-round(stats::IQR(data_sub[,x@name], na.rm = T), digits = digits.qt)
     value = paste(median, " (", iqr, ")", sep = "")
@@ -87,21 +89,21 @@ quantiUnivFun<-function(x, data_sub, group, digits.qt, digits.ql){
   return(var.group)
 }
 
-lapplyQuanti<-function(group, data, numeric_list, digits.qt, digits.ql){
+lapplyQuanti<-function(group, data, numeric_list, digits.qt, digits.ql, parallel, mc.cores){
   if (!is.null(group)){
     for (i in 1:nlevels(data[,group])){
       data_sub<-data[data[,group] == levels(data[,group])[i],]
-      quanti.Univ_list.tmp<-purrr::compact(lapply(numeric_list@List, quantiUnivFun,
+      quanti.Univ_list.tmp<-purrr::compact(parallelFun(parallel, X = numeric_list@List, FUN = quantiUnivFun,
                                    data_sub = data_sub,group = levels(data[,group])[i],
-                                   digits.qt = digits.qt, digits.ql = digits.ql))
+                                   digits.qt = digits.qt, digits.ql = digits.ql, mc.cores = mc.cores))
       if (!exists("quanti.Univ_list.Group", inherits = FALSE))
         quanti.Univ_list.Group<-quanti.Univ_list.tmp
       else
         quanti.Univ_list.Group<-c(quanti.Univ_list.Group, quanti.Univ_list.tmp)
     }
   }
-  lst_VarGroup.Univ.Total<-purrr::compact(lapply(numeric_list@List, quantiUnivFun, data_sub = data,
-                                  group = NULL, digits.qt = digits.qt))
+  lst_VarGroup.Univ.Total<-purrr::compact(parallelFun(parallel, X = numeric_list@List, FUN = quantiUnivFun, data_sub = data,
+                                  group = NULL, digits.qt = digits.qt, mc.cores = mc.cores))
   if (exists("quanti.Univ_list.Group", inherits = FALSE)){
     quanti.Univ_list.Global<-purrr::compact(unlist(c(quanti.Univ_list.Group, lst_VarGroup.Univ.Total)))
     return(unlist(quanti.Univ_list.Global))
@@ -113,12 +115,14 @@ lapplyQuanti<-function(group, data, numeric_list, digits.qt, digits.ql){
 #########################################
 
 ###### Method Class to dispatch vars ######
-setGeneric("anaUniv", function(var, group, data, ...) {
+setGeneric("anaUniv", function(var, group, data, digits.qt, digits.ql, quali, quanti,
+                               parallel, mc.cores) {
   return(standardGeneric("anaUniv"))
 })
 
 setMethod("anaUniv", "listVar", function(var, group, data,
-                                         digits.qt, digits.ql, quali, quanti){
+                                         digits.qt, digits.ql, quali, quanti,
+                                         parallel, mc.cores){
   numeric_list<-purrr::compact(lapply(var@List, function(x){if("numeric" %in% x@type) return(x)}))
   if (!is.null(group))
     factor_list<-purrr::compact(lapply(var@List, function(x){if("factor" %in% x@type &&
@@ -128,10 +132,10 @@ setMethod("anaUniv", "listVar", function(var, group, data,
   numeric_list<-methods::new("listVar", List = numeric_list)
   factor_list<-methods::new("listVar", List = factor_list)
   if (quali == TRUE)
-    lst_VarGroup.quali<-lapplyQuali(group, data, factor_list, digits.ql)
+    lst_VarGroup.quali<-lapplyQuali(group, data, factor_list, digits.ql, parallel, mc.cores)
   if (quanti == TRUE)
   lst_VarGroup.quanti<-lapplyQuanti(group, data, numeric_list,
-                                    digits.qt, digits.ql)
+                                    digits.qt, digits.ql, parallel, mc.cores)
   if (!exists("lst_VarGroup.quali", inherits = FALSE) || is.null(lst_VarGroup.quali))
     return(lst_VarGroup.quanti)
   else if (!exists("lst_VarGroup.quanti") || is.null(lst_VarGroup.quanti))
