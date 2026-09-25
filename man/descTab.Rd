@@ -2,11 +2,11 @@
 % Please edit documentation in R/descTab.R
 \name{descTab}
 \alias{descTab}
-\title{Generic function to create a table of descriptive analysis of a dataset}
+\title{Create a table of descriptive analysis of a dataset}
 \usage{
 descTab(
   data,
-  group = NULL,
+  group = "",
   quanti = TRUE,
   quali = TRUE,
   na.print = FALSE,
@@ -20,11 +20,17 @@ descTab(
 )
 }
 \arguments{
-\item{data}{A datasaset. Needs to be a data.frame/tibble object}
+\item{data}{A dataset. Needs to be a data.frame or a tibble.}
 
-\item{group}{Optional. The name of the variable to make sub-groups comparisons.}
+\item{group}{Optional. The name of the factor variable to make sub-groups
+comparisons with; it must have at least two non empty levels. Omitted,
+\code{""} or \code{NULL}, the table has a single Total column. Rows with a missing
+value for it are dropped, and its unused levels are dropped, both with a
+warning.}
 
-\item{quanti, quali, na.print, pvalue}{Logical. If false, won't display quantitative/qualitative/Missing values/pvalues variable results}
+\item{quanti, quali, na.print, pvalue}{Logical. If false, won't display
+quantitative/qualitative/Missing values/pvalues variable results. \code{quanti}
+and \code{quali} cannot both be \code{FALSE}.}
 
 \item{digits.p}{Integer. Significant digits for p value}
 
@@ -32,32 +38,65 @@ descTab(
 
 \item{digits.ql}{Integer. Significant digits for proportions}
 
-\item{normality}{One of "assess", "normal", "manual", "non normal". See details}
+\item{normality}{One of "normal", "non normal" or "assess". "normal" applies
+the parametric tests (mean (SD), t test/ANOVA) to every quantitative
+variable, "non normal" the non parametric ones (median (IQR),
+Wilcoxon/Kruskal-Wallis), and "assess" decides variable by variable with a
+Shapiro-Wilk test at the 5\% level.}
 
 \item{parallel}{Logical. Make analysis using parallel from \code{\link[parallel:mclapply]{parallel::mclapply()}}.}
 
-\item{mc.cores}{If parallel is TRUE, how many Cores to used.}
+\item{mc.cores}{If parallel is TRUE, how many cores to use. The default, 0,
+uses all the cores but one.}
 }
 \value{
-A S4 objects \code{\link[=parseClass]{parseClass()}} containing the main table accessible by ["table"] subscript.
+An S4 object of class \code{parseClass}. Its \verb{["table"]} element is a
+\code{data.frame} (whether or not there is a group, and also when \code{data} is a
+tibble) with a \code{var} column, one column per level of \code{group}, a \code{Total}
+column and, if there is a group and \code{pvalue = TRUE}, a \code{pvalue} column.
 }
 \description{
-This function allows you to display all together all univariate analysis (median/mean; IQR/SD; proportions)
-and bivariates analysis (Wilcoxon, Chi² or Fisher).
-The univariate analysis can be sub-grouped by a variable of interest of n levels. Appropriate statistics test will be applied
+Displays together the univariate analysis (mean/median; SD/IQR; proportions)
+and the bivariate analysis (t test/Wilcoxon, ANOVA/Kruskal-Wallis, Chi2 or
+Fisher) of every variable of a dataset. The univariate analysis can be
+sub-grouped by a variable of interest of n levels; the test applied to each
+variable follows from its type and from \code{normality}.
+}
+\details{
+Only numeric, integer and factor (including ordered factor) variables are
+described. A variable of any other type is ignored with a warning, as is a
+variable whose test cannot be computed: its p value is then \code{NA} and the rest
+of the table is still produced.
 }
 \examples{
-data(iris)
-library(stringi)
-iris$fact_1<-as.factor(as.character(sample(1:5, 150, replace = TRUE)))
-n_na<-sample(1:150, 30)
-iris[n_na, "fact_1"]<-NA
-iris$fact_2<-as.factor(as.character(sample(1:2, 150, replace = TRUE)))
-n_na<-sample(1:150, 10)
-iris[n_na, "fact_2"]<-NA
-iris$fact_3<-as.factor(as.character(stri_rand_strings(150, 1, '[A-B]')))
-iris$num<-runif(150, min = 0, max = 100)
-n_na<-sample(1:150, 5)
-iris[n_na, "num"]<-NA
-iris_test<-descTab(iris, group = "Species", na.print = TRUE)
+# A small simulated clinical trial
+set.seed(42)
+n <- 200
+patients <- data.frame(
+  arm      = factor(sample(c("Placebo", "Treatment"), n, replace = TRUE)),
+  age      = round(rnorm(n, mean = 65, sd = 10)),
+  crp      = round(rlnorm(n, meanlog = 2, sdlog = 1), 1),
+  sex      = factor(sample(c("Female", "Male"), n, replace = TRUE)),
+  diabetes = factor(sample(c("No", "Yes"), n, replace = TRUE, prob = c(0.7, 0.3))),
+  nyha     = factor(sample(c("I", "II", "III", "IV"), n, replace = TRUE),
+                    ordered = TRUE)
+)
+patients$crp[sample(n, 15)] <- NA
+
+# Compare the two arms. With normality = "assess", age (normal) is described
+# by mean (SD) with a t test, crp (skewed) by median (IQR) with a Wilcoxon test
+tab <- descTab(patients, group = "arm", normality = "assess", na.print = TRUE)
+tab["table"]
+
+# No group: a single Total column, no test
+descTab(patients)["table"]
+
+# Quantitative variables only, two decimals
+descTab(patients, group = "arm", quali = FALSE, digits.qt = 2)["table"]
+
+# Render it (see parseClassFun() for the layout options)
+parseClassFun(tab)
+}
+\seealso{
+\code{\link[=parseClassFun]{parseClassFun()}} to turn the result into an HTML/LaTeX table.
 }

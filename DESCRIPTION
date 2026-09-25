@@ -1,20 +1,27 @@
 Package: doudpackage
-Title: Create Elegant Table 1 in HTML for Bio-Statistics
-Version: 2.1.0
+Title: Create Elegant Table 1 in HTML/'LaTeX' for Bio-Statistics
+Version: 2.2.0
 Authors@R: 
     person("Edouard", "Baudouin", , "edouardpierre.baudouin@aphp.fr", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-8324-6908"))
-Description: Creates the "table one" of bio-medical papers. Fill it with your data and the name of the variable which you'll make the group(s) out of and it will make univariate, bivariate analysis and parse it into HTML.
-    It also allows you to visualize all your data with graphic representation.
+Description: Creates the "table one" of bio-medical papers. Fill it with your
+    data and the name of the variable which you'll make the group(s) out of and
+    it will make univariate and bivariate analysis, and parse the result into an
+    HTML or 'LaTeX' table ready to paste into a paper.
 License: GPL (>= 3)
 Encoding: UTF-8
 Language: en-US
-RoxygenNote: 7.2.3
-Imports: dplyr, kableExtra, methods, parallel, purrr, stats, stringi,
-        tibble, tidyr
+Imports: dplyr, kableExtra, methods, parallel, purrr, stats, tibble,
+        tidyr
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+URL: https://github.com/tiago972/doudpackage
+BugReports: https://github.com/tiago972/doudpackage/issues
+Config/roxygen2/version: 8.0.0
 NeedsCompilation: no
-Packaged: 2023-06-29 08:24:33 UTC; tiago2
-Author: Edouard Baudouin [aut, cre] (<https://orcid.org/0000-0002-8324-6908>)
+Packaged: 2026-09-25 13:09:35 UTC; mac
+Author: Edouard Baudouin [aut, cre] (ORCID:
+    <https://orcid.org/0000-0002-8324-6908>)
 Maintainer: Edouard Baudouin <edouardpierre.baudouin@aphp.fr>
 Repository: CRAN
-Date/Publication: 2023-06-29 17:20:06 UTC
+Date/Publication: 2026-09-25 14:10:12 UTC

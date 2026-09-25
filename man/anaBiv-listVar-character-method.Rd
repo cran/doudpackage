@@ -9,11 +9,11 @@
 \arguments{
 \item{var}{listVar object or data.frame}
 
-\item{group}{Variable to make subgroups with}
+\item{group}{Name of the factor variable to make subgroups with}
 
 \item{parallel}{Logical. Make analysis using parallel from \code{\link[parallel:mclapply]{parallel::mclapply()}}.}
 
-\item{...}{digits.p can be specified as descTab}
+\item{...}{Further arguments: \code{normality} and \code{digits.p}, as in \code{\link[=descTab]{descTab()}}.}
 }
 \value{
 A list of VarGroup object or data.frame

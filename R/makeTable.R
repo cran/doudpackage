@@ -7,7 +7,10 @@ makeTable<-function(quali.Univ_list.Global, group, pvalue, na.print,
     tmp_df<-tibble::tibble("var" = c(x@parsed_name, x@missing.value.name),
                            "group_var" = c(x@value, x@missing.value), pvalue=c(x@pvalue, NA))
 
-    names(tmp_df)[names(tmp_df) == "group_var"]<-x@group_var
+    if (length(x@group_var) != 0)
+      names(tmp_df)[names(tmp_df) == "group_var"]<-x@group_var
+    else
+      names(tmp_df)[names(tmp_df) == "group_var"]<-"Total"
     return(tmp_df)
   }, mc.cores = mc.cores))
 
@@ -22,12 +25,13 @@ makeTable<-function(quali.Univ_list.Global, group, pvalue, na.print,
     else
       tmp_df<-merge(tmp_df, tmp, by = "var")
   }
-  if (!is.null(group) && pvalue == TRUE)
-    tmp_df<-merge(tmp_df, unique(dplyr::select(df, "var", "pvalue"), by = "var"))
+  if (group != "" && pvalue == TRUE)
+    tmp_df<-merge(tmp_df, unique(dplyr::select(df, "var", "pvalue")), by = "var")
   else
     pvalue = FALSE
   if (na.print == FALSE)
-    tmp_df<-tmp_df[!grepl(".*Missing values", tmp_df[,1]),]
-  df<-tmp_df
+    tmp_df<-tmp_df[!grepl(".*Missing values", tmp_df$var),]
+  df<-as.data.frame(tmp_df)
+  rownames(df)<-NULL
   return (list("df" = df, "pvalue"= pvalue))
 }

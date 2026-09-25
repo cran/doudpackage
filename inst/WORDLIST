@@ -1,9 +1,9 @@
-Biostatistics
 LaTex
 Rmarkdown
 VarGroup
+Wilk
 anaBiv
-datasaset
+arial
 descTab
 kableExtra
 listVar
@@ -13,3 +13,4 @@ pvalue
 pvalues
 sd
 tibble
+unhandled

@@ -4,20 +4,44 @@
 \alias{anaBiv,data.frame,character-method}
 \title{anaBiv data.frame function}
 \usage{
-\S4method{anaBiv}{data.frame,character}(var, group, parallel, ...)
+\S4method{anaBiv}{data.frame,character}(var, group, parallel, normality = "normal", digits.p = 3L, ...)
 }
 \arguments{
 \item{var}{listVar object or data.frame}
 
-\item{group}{Variable to make subgroups with}
+\item{group}{Name of the factor variable to make subgroups with}
 
 \item{parallel}{Logical. Make analysis using parallel from \code{\link[parallel:mclapply]{parallel::mclapply()}}.}
 
-\item{...}{digits.p can be specified as descTab}
+\item{normality}{One of "normal", "non normal" or "assess", as in \code{\link[=descTab]{descTab()}}.}
+
+\item{digits.p}{Integer. Significant digits for p value.}
+
+\item{...}{Further arguments: \code{normality} and \code{digits.p}, as in \code{\link[=descTab]{descTab()}}.}
 }
 \value{
 A list of VarGroup object or data.frame
 }
 \description{
 Generic function of anaBiv which gives bivariate analysis according to group
+}
+\examples{
+# A small simulated clinical trial
+set.seed(42)
+n <- 200
+patients <- data.frame(
+  arm      = factor(sample(c("Placebo", "Treatment"), n, replace = TRUE)),
+  age      = round(rnorm(n, mean = 65, sd = 10)),
+  crp      = round(rlnorm(n, meanlog = 2, sdlog = 1), 1),
+  sex      = factor(sample(c("Female", "Male"), n, replace = TRUE)),
+  diabetes = factor(sample(c("No", "Yes"), n, replace = TRUE, prob = c(0.7, 0.3))),
+  nyha     = factor(sample(c("I", "II", "III", "IV"), n, replace = TRUE),
+                    ordered = TRUE)
+)
+patients$crp[sample(n, 15)] <- NA
+
+# p values only, without the descriptive table
+res <- anaBiv(patients, group = "arm", parallel = FALSE, normality = "assess")
+data.frame(variable = sapply(res, function(x) x["name"]),
+           pvalue = sapply(res, function(x) x["pvalue"]))
 }

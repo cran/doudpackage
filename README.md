@@ -9,373 +9,116 @@
 status](https://www.r-pkg.org/badges/version/doudpackage)](https://CRAN.R-project.org/package=doudpackage)
 <!-- badges: end -->
 
-The goal of doudpackage is to Creates the “table one” of biomedical
-papers. Fill it with your data and the name of the variable which you’ll
-make the group(s) out of and it will make univariate, bivariate analysis
-and parse it into HTML.
+doudpackage builds the “table one” of a bio-medical paper: one row per
+variable, one column per sub-group, the right statistical test picked
+for you, and an HTML or LaTeX table ready to paste into the manuscript.
+
+You give it a `data.frame` and the name of the grouping variable. It
+works out which variables are quantitative and which are qualitative,
+describes each of them, compares them across the groups, and renders the
+result with [kableExtra](https://CRAN.R-project.org/package=kableExtra).
 
 ## Installation
 
-You can install the development version of doudpackage from
-[GitHub](https://github.com/) with:
+``` r
+install.packages("doudpackage")
+```
+
+Development version:
 
 ``` r
 # install.packages("devtools")
 devtools::install_github("tiago972/doudpackage")
 ```
 
-## Example
+## Getting started
+
+Two functions do the work: `descTab()` computes the table,
+`parseClassFun()` renders it.
 
 ``` r
 library(doudpackage)
-## basic example code
+
 data(iris)
-library(stringi)
-iris$fact_1<-as.factor(as.character(sample(1:5, 150, replace = TRUE)))
-n_na<-sample(1:150, 30)
-iris[n_na, "fact_1"]<-NA
-iris$fact_2<-as.factor(as.character(stri_rand_strings(150, 1, '[A-B]')))
-iris$num<-runif(150, min = 0, max = 100)
-n_na<-sample(1:150, 5)
-iris[n_na, "num"]<-NA
-iris_test<-descTab(iris, group = "Species", na.print = TRUE)
-testParse<-parseClassFun(iris_test, levels_to_keep = list("fact_2" =  "A"),
-group_rows_labels = list("Size" = c("Petal.Length", "Petal.Width"),
-"My_f" = c("num", "fact_2")))
+iris$treated <- factor(sample(c("no", "yes"), 150, replace = TRUE))
+iris$dose <- runif(150, min = 0, max = 100)
+iris$dose[sample(1:150, 5)] <- NA
+
+tab <- descTab(iris, group = "Species")
+tab["table"]
+#>                      var      setosa  versicolor virginica       Total pvalue
+#> 1         dose mean (SD) 56.3 (24.6) 58.4 (27.9) 51.5 (31) 55.4 (27.9)  0.464
+#> 2 Petal.Length mean (SD)   1.5 (0.2)   4.3 (0.5) 5.6 (0.6)   3.8 (1.8)  0.000
+#> 3  Petal.Width mean (SD)   0.2 (0.1)   1.3 (0.2)   2 (0.3)   1.2 (0.8)  0.000
+#> 4 Sepal.Length mean (SD)     5 (0.4)   5.9 (0.5) 6.6 (0.6)   5.8 (0.8)  0.000
+#> 5  Sepal.Width mean (SD)   3.4 (0.4)   2.8 (0.3)   3 (0.3)   3.1 (0.4)  0.000
+#> 6            treated, no     23 (46)     26 (52)   28 (56)   77 (51.3)  0.602
+#> 7           treated, yes     27 (54)     24 (48)   22 (44)   73 (48.7)  0.602
 ```
 
-<table class=" lightable-paper" style="font-family: arial; margin-left: auto; margin-right: auto;">
-<thead>
-<tr>
-<th style="empty-cells: hide;" colspan="1">
-</th>
-<th style="padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="1">
+`descTab()` returns an S4 object; the raw data frame is under
+`["table"]` and `parseClassFun()` turns it into the formatted table:
 
-<div style="border-bottom: 1px solid #00000020; padding-bottom: 5px; ">
+``` r
+parseClassFun(tab)
+```
 
-setosa
+## What goes into a row
 
-</div>
+| Variable | Described as | Compared with |
+|----|----|----|
+| numeric / integer, normal | mean (SD) | t test (2 groups), ANOVA (3+) |
+| numeric / integer, non normal | median (IQR) | Wilcoxon (2 groups), Kruskal-Wallis (3+) |
+| factor / ordered factor | n (%) per level | Chi-squared, Fisher when the approximation is unreliable |
 
-</th>
-<th style="padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="1">
+Variables of any other type (character, `Date`, logical) are ignored
+with a warning. Set `normality` to choose how quantitative variables are
+handled:
 
-<div style="border-bottom: 1px solid #00000020; padding-bottom: 5px; ">
+``` r
+descTab(iris, group = "Species", normality = "normal")      # mean (SD) everywhere
+descTab(iris, group = "Species", normality = "non normal")  # median (IQR) everywhere
+descTab(iris, group = "Species", normality = "assess")      # Shapiro-Wilk, variable by variable
+```
 
-versicolor
+## Shaping the output
 
-</div>
+``` r
+tab <- descTab(iris, group = "Species", na.print = TRUE)
 
-</th>
-<th style="padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="1">
+parseClassFun(
+  tab,
+  # only one line for a binary variable, and choose which one
+  levels_to_keep = list("treated" = "yes"),
+  # regroup rows under labels, in this order
+  group_rows_labels = list("Petal" = c("Petal.Length", "Petal.Width"),
+                           "Sepal" = c("Sepal.Length", "Sepal.Width")),
+  # column order
+  col.order = c("Total", "setosa", "versicolor", "virginica"),
+  font = "Times New Roman"
+)
+```
 
-<div style="border-bottom: 1px solid #00000020; padding-bottom: 5px; ">
+Useful `descTab()` arguments:
 
-virginica
+| Argument | Effect |
+|----|----|
+| `group` | the factor defining the columns; omit it for a single Total column |
+| `na.print` | add a “Missing values” row under each variable |
+| `pvalue` | drop the p value column |
+| `quanti`, `quali` | restrict the table to one kind of variable |
+| `digits.p`, `digits.qt`, `digits.ql` | rounding for p values, mean/SD, proportions |
+| `parallel`, `mc.cores` | compute the analyses with `parallel::mclapply()` |
 
-</div>
+## Notes on missing and degenerate data
 
-</th>
-<th style="padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="1">
+- Rows with a missing value in `group` are dropped, with a warning.
+- Unused levels of `group` (typically left behind by a subset) are
+  dropped, with a warning, rather than producing an empty column.
+- When a test cannot be computed — a constant variable, an empty level,
+  too few observations — the p value is `NA` and a warning names the
+  variable. The rest of the table is still produced.
 
-<div style="border-bottom: 1px solid #00000020; padding-bottom: 5px; ">
+## Bugs
 
-Total
-
-</div>
-
-</th>
-<th style="empty-cells: hide;" colspan="1">
-</th>
-</tr>
-<tr>
-<th style="text-align:left;">
-</th>
-<th style="text-align:left;">
-n = 50 (33.3)
-</th>
-<th style="text-align:left;">
-n = 50 (33.3)
-</th>
-<th style="text-align:left;">
-n = 50 (33.3)
-</th>
-<th style="text-align:left;">
-n = 150
-</th>
-<th style="text-align:left;">
-pvalue
-</th>
-</tr>
-</thead>
-<tbody>
-<tr grouplength="2">
-<td colspan="6" style="border-bottom: 1px solid #00000020;">
-<strong>Size</strong>
-</td>
-</tr>
-<tr>
-<td style="text-align:left;padding-left: 2em;" indentlevel="1">
-Petal.Length
-</td>
-<td style="text-align:left;">
-1.5 (0.2)
-</td>
-<td style="text-align:left;">
-4.3 (0.5)
-</td>
-<td style="text-align:left;">
-5.6 (0.6)
-</td>
-<td style="text-align:left;">
-3.8 (1.8)
-</td>
-<td style="text-align:left;">
-\< 0.001
-</td>
-</tr>
-<tr>
-<td style="text-align:left;padding-left: 2em;" indentlevel="1">
-Petal.Width
-</td>
-<td style="text-align:left;">
-0.2 (0.1)
-</td>
-<td style="text-align:left;">
-1.3 (0.2)
-</td>
-<td style="text-align:left;">
-2 (0.3)
-</td>
-<td style="text-align:left;">
-1.2 (0.8)
-</td>
-<td style="text-align:left;">
-\< 0.001
-</td>
-</tr>
-<tr grouplength="3">
-<td colspan="6" style="border-bottom: 1px solid #00000020;">
-<strong>My_f</strong>
-</td>
-</tr>
-<tr>
-<td style="text-align:left;padding-left: 2em;" indentlevel="1">
-fact_2, A
-</td>
-<td style="text-align:left;">
-24 (48)
-</td>
-<td style="text-align:left;">
-34 (68)
-</td>
-<td style="text-align:left;">
-29 (58)
-</td>
-<td style="text-align:left;">
-87 (58)
-</td>
-<td style="text-align:left;">
-0.128
-</td>
-</tr>
-<tr>
-<td style="text-align:left;padding-left: 2em;" indentlevel="1">
-num
-</td>
-<td style="text-align:left;">
-51.2 (28.9)
-</td>
-<td style="text-align:left;">
-47.9 (28.5)
-</td>
-<td style="text-align:left;">
-48.4 (31.7)
-</td>
-<td style="text-align:left;">
-49.2 (29.6)
-</td>
-<td style="text-align:left;">
-0.837
-</td>
-</tr>
-<tr>
-<td style="text-align:left;padding-left: 4em;" indentlevel="2">
-Missing values
-</td>
-<td style="text-align:left;">
-0 (0)
-</td>
-<td style="text-align:left;">
-4 (8)
-</td>
-<td style="text-align:left;">
-1 (2)
-</td>
-<td style="text-align:left;">
-5 (3)
-</td>
-<td style="text-align:left;">
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-fact_1, 1
-</td>
-<td style="text-align:left;">
-8 (16)
-</td>
-<td style="text-align:left;">
-5 (10)
-</td>
-<td style="text-align:left;">
-10 (20)
-</td>
-<td style="text-align:left;">
-23 (15.3)
-</td>
-<td style="text-align:left;">
-0.698
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-fact_1, 2
-</td>
-<td style="text-align:left;">
-8 (16)
-</td>
-<td style="text-align:left;">
-5 (10)
-</td>
-<td style="text-align:left;">
-3 (6)
-</td>
-<td style="text-align:left;">
-16 (10.7)
-</td>
-<td style="text-align:left;">
-0.698
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-fact_1, 3
-</td>
-<td style="text-align:left;">
-5 (10)
-</td>
-<td style="text-align:left;">
-8 (16)
-</td>
-<td style="text-align:left;">
-10 (20)
-</td>
-<td style="text-align:left;">
-23 (15.3)
-</td>
-<td style="text-align:left;">
-0.698
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-fact_1, 4
-</td>
-<td style="text-align:left;">
-9 (18)
-</td>
-<td style="text-align:left;">
-10 (20)
-</td>
-<td style="text-align:left;">
-9 (18)
-</td>
-<td style="text-align:left;">
-28 (18.7)
-</td>
-<td style="text-align:left;">
-0.698
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-fact_1, 5
-</td>
-<td style="text-align:left;">
-9 (18)
-</td>
-<td style="text-align:left;">
-10 (20)
-</td>
-<td style="text-align:left;">
-11 (22)
-</td>
-<td style="text-align:left;">
-30 (20)
-</td>
-<td style="text-align:left;">
-0.698
-</td>
-</tr>
-<tr>
-<td style="text-align:left;padding-left: 2em;" indentlevel="1">
-Missing values
-</td>
-<td style="text-align:left;">
-11 (22)
-</td>
-<td style="text-align:left;">
-12 (24)
-</td>
-<td style="text-align:left;">
-7 (14)
-</td>
-<td style="text-align:left;">
-30 (20)
-</td>
-<td style="text-align:left;">
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Sepal.Length
-</td>
-<td style="text-align:left;">
-5 (0.4)
-</td>
-<td style="text-align:left;">
-5.9 (0.5)
-</td>
-<td style="text-align:left;">
-6.6 (0.6)
-</td>
-<td style="text-align:left;">
-5.8 (0.8)
-</td>
-<td style="text-align:left;">
-\< 0.001
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Sepal.Width
-</td>
-<td style="text-align:left;">
-3.4 (0.4)
-</td>
-<td style="text-align:left;">
-2.8 (0.3)
-</td>
-<td style="text-align:left;">
-3 (0.3)
-</td>
-<td style="text-align:left;">
-3.1 (0.4)
-</td>
-<td style="text-align:left;">
-\< 0.001
-</td>
-</tr>
-</tbody>
-</table>
+Please report them at <https://github.com/tiago972/doudpackage/issues>.

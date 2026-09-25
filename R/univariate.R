@@ -34,7 +34,7 @@ qualiUnivFun<-function(x, data_sub, group, digits.ql){
 }
 
 lapplyQuali<-function(group, data, factor_list, digits.ql, parallel, mc.cores){
-  if (!is.null(group)){
+  if (group != ""){
     for (i in 1:nlevels(data[,group])){
       data_sub<-data[data[,group] == levels(data[,group])[i],]
       quali.Univ_list.tmp<-purrr::compact(parallelFun(parallel, X = factor_list@List, FUN = qualiUnivFun, data_sub = data_sub,
@@ -67,18 +67,25 @@ quantiUnivFun<-function(x, data_sub, group, digits.qt, digits.ql){
   missing.value<-paste(n.missing.value, " (", prop.missing.value, ")", sep = "")
   missing.value.name = paste(x@name, "Missing values", sep = ".")
   parsed_name = x@name
+  values<-data_sub[, x@name]
+  if (all(is.na(values))){
+    return(VarGroup(x = x, group_var = group_var, pvalue = x@pvalue,
+                    parsed_name = paste(x@name,
+                                        if (x@normal) "mean (SD)" else "median (IQR)"),
+                    value = "NA", missing.value = missing.value,
+                    missing.value.name = missing.value.name))
+  }
   if (x@normal == TRUE){
     parsed_name = paste(x@name, "mean (SD)", sep = " ")
-    "mean"<-round(mean(data_sub[,x@name], na.rm = T), digits = digits.qt)
-    "sd"<-round(sd(data_sub[,x@name], na.rm = T), digits = digits.qt)
-    value = paste(mean, " (", sd, ")", sep = "")
+    center<-round(mean(values, na.rm = TRUE), digits = digits.qt)
+    spread<-round(stats::sd(values, na.rm = TRUE), digits = digits.qt)
   }
   else{
     parsed_name = paste(x@name, "median (IQR)", sep = " ")
-    "median"<-round(stats::median(data_sub[,x@name], na.rm = T), digits = digits.qt)
-    "iqr"<-round(stats::IQR(data_sub[,x@name], na.rm = T), digits = digits.qt)
-    value = paste(median, " (", iqr, ")", sep = "")
+    center<-round(stats::median(values, na.rm = TRUE), digits = digits.qt)
+    spread<-round(stats::IQR(values, na.rm = TRUE), digits = digits.qt)
   }
+  value = paste(center, " (", spread, ")", sep = "")
 
   var.group <-VarGroup(x = x,
                          group_var = group_var, pvalue = x@pvalue,
@@ -90,7 +97,7 @@ quantiUnivFun<-function(x, data_sub, group, digits.qt, digits.ql){
 }
 
 lapplyQuanti<-function(group, data, numeric_list, digits.qt, digits.ql, parallel, mc.cores){
-  if (!is.null(group)){
+  if (group != ""){
     for (i in 1:nlevels(data[,group])){
       data_sub<-data[data[,group] == levels(data[,group])[i],]
       quanti.Univ_list.tmp<-purrr::compact(parallelFun(parallel, X = numeric_list@List, FUN = quantiUnivFun,
@@ -103,7 +110,8 @@ lapplyQuanti<-function(group, data, numeric_list, digits.qt, digits.ql, parallel
     }
   }
   lst_VarGroup.Univ.Total<-purrr::compact(parallelFun(parallel, X = numeric_list@List, FUN = quantiUnivFun, data_sub = data,
-                                  group = NULL, digits.qt = digits.qt, mc.cores = mc.cores))
+                                  group = NULL, digits.qt = digits.qt,
+                                  digits.ql = digits.ql, mc.cores = mc.cores))
   if (exists("quanti.Univ_list.Group", inherits = FALSE)){
     quanti.Univ_list.Global<-purrr::compact(unlist(c(quanti.Univ_list.Group, lst_VarGroup.Univ.Total)))
     return(unlist(quanti.Univ_list.Global))
@@ -124,7 +132,7 @@ setMethod("anaUniv", "listVar", function(var, group, data,
                                          digits.qt, digits.ql, quali, quanti,
                                          parallel, mc.cores){
   numeric_list<-purrr::compact(lapply(var@List, function(x){if("numeric" %in% x@type) return(x)}))
-  if (!is.null(group))
+  if (group != "")
     factor_list<-purrr::compact(lapply(var@List, function(x){if("factor" %in% x@type &&
                                                           x@name != group) return(x)}))
   else
@@ -138,7 +146,7 @@ setMethod("anaUniv", "listVar", function(var, group, data,
                                     digits.qt, digits.ql, parallel, mc.cores)
   if (!exists("lst_VarGroup.quali", inherits = FALSE) || is.null(lst_VarGroup.quali))
     return(lst_VarGroup.quanti)
-  else if (!exists("lst_VarGroup.quanti") || is.null(lst_VarGroup.quanti))
+  else if (!exists("lst_VarGroup.quanti", inherits = FALSE) || is.null(lst_VarGroup.quanti))
     return(lst_VarGroup.quali)
   return(unlist(c(lst_VarGroup.quanti, lst_VarGroup.quali)))
 })

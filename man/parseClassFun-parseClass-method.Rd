@@ -8,17 +8,20 @@
   table,
   col.order = NULL,
   levels_to_keep = NULL,
-  group_rows_labels = NULL
+  group_rows_labels = NULL,
+  font = "arial"
 )
 }
 \arguments{
 \item{table}{The output of \code{\link[=descTab]{descTab()}} or \code{\link[=anaBiv]{anaBiv()}}, an S4 object.}
 
-\item{col.order}{Optional. A vector containing the column order. If set, must contains at least all levels of group. Three columns created are "var", "Total", and "pvalue" which can be present in the vector}
+\item{col.order}{Optional. A vector containing the column order. If set, must contain at least all levels of group, without duplicates. Three columns created are "var", "Total", and "pvalue" which can be present in the vector}
 
 \item{levels_to_keep}{Optional, named list. If the variable is binary, which level to keep. Default is the last level of levels(variable). Must be as: list("variable name" = "level to keep").}
 
-\item{group_rows_labels}{Optional, named list. Create row labels in order to regroup them. Must be as list("label" = c("var1", "var2), "label2" = c("var3", "var4")).}
+\item{group_rows_labels}{Optional, named list. Create row labels in order to regroup them. Must be as list("label" = c("var1", "var2"), "label2" = c("var3", "var4")). Variable names are matched exactly, and a variable with no row in the table is an error. Rows are reordered to follow the order of the labels and of the variables within each label.}
+
+\item{font}{The HTML font of the table. Default "arial".}
 }
 \value{
 An HTML/LaTex file which can be used directly in Rmarkdown and copy paste
@@ -27,17 +30,36 @@ An HTML/LaTex file which can be used directly in Rmarkdown and copy paste
 This functions takes the S4 output of descTab to create an HTML parsed table
 }
 \examples{
-data(iris)
-library(stringi)
-iris$fact_1<-as.factor(as.character(sample(1:5, 150, replace = TRUE)))
-n_na<-sample(1:150, 30)
-iris[n_na, "fact_1"]<-NA
-iris$fact_2<-as.factor(as.character(stri_rand_strings(150, 1, '[A-B]')))
-iris$num<-runif(150, min = 0, max = 100)
-n_na<-sample(1:150, 5)
-iris[n_na, "num"]<-NA
-iris_test<-descTab(iris, group = "Species", na.print = TRUE)
-testParse<-parseClassFun(iris_test, levels_to_keep = list("fact_2" =  "A"),
-group_rows_labels = list("Size" = c("Petal.Length", "Petal.Width"),
-"My_f" = c("num", "fact_2")))
+# A small simulated clinical trial
+set.seed(42)
+n <- 200
+patients <- data.frame(
+  arm      = factor(sample(c("Placebo", "Treatment"), n, replace = TRUE)),
+  age      = round(rnorm(n, mean = 65, sd = 10)),
+  crp      = round(rlnorm(n, meanlog = 2, sdlog = 1), 1),
+  sex      = factor(sample(c("Female", "Male"), n, replace = TRUE)),
+  diabetes = factor(sample(c("No", "Yes"), n, replace = TRUE, prob = c(0.7, 0.3))),
+  nyha     = factor(sample(c("I", "II", "III", "IV"), n, replace = TRUE),
+                    ordered = TRUE)
+)
+patients$crp[sample(n, 15)] <- NA
+
+tab <- descTab(patients, group = "arm", normality = "assess", na.print = TRUE)
+
+# Default layout
+parseClassFun(tab)
+
+# One line for the binary variables, rows grouped under labels, the Total
+# column after the arms, and a custom font
+parseClassFun(
+  tab,
+  levels_to_keep = list(sex = "Female", diabetes = "Yes"),
+  group_rows_labels = list("Demographics" = c("age", "sex"),
+                           "Clinical" = c("crp", "diabetes", "nyha")),
+  col.order = c("var", "Placebo", "Treatment", "Total", "pvalue"),
+  font = "Times New Roman"
+)
+}
+\seealso{
+\code{\link[=descTab]{descTab()}} which produces the object this function renders.
 }
